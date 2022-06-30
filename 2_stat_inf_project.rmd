@@ -1,0 +1,136 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+<style>
+body {text-align: justify}
+</style>
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+The data set is a sample of selected indicators in the GSS. According to the Project Description in the original GSS data set, the latest survey, GSS 2012, includes a cumulative file that merges all 29 General Social Surveys into a single file containing data from 1972 to 2012. 
+The modes of data collection are computer-assisted, personal interview, face-to-face interview and telephone interview. 
+Random sampling has been employed, so this can be classified as an observational study which results suggest correlation and is generalizable to the USA population. Given that it is not an experimental study and random assignment has not been employed, the results do not suggest causality.
+
+```{r dataset characteristics}
+dim(gss)
+`````
+The dataset is composed of 57,061 rows and 114 columns. That is, 57,061 observations (individual respondents) for 114 variables (questions).
+
+* * *
+
+## Part 2: Research question
+
+According to the sample data how was the evolution of marital status from 1972 (first research) to 2012 (last research). There were any change in the married people proportion among the respondents over the years? The difference observed in the sample proportion along the period is statistical significant?
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+```{r}
+  str(gss$marital)
+```
+
+First, we need to construct a new data set from the SGG selecting only the data on which we have interest: the variable "marital" for the years 1972 and 2012. 
+
+```{r}
+marital_1972_2012<- gss%>%
+  select(marital, year)%>%
+  filter(year %in% c("1972", "2012"))%>%
+  group_by(year)
+```
+
+Than, we can explore this new dataset: 
+
+```{r}
+count(marital_1972_2012%>%group_by(year))
+```
+```{r}
+count(marital_1972_2012%>%filter(year=="1972")%>%group_by(marital))
+```
+
+```{r}
+count(marital_1972_2012%>%filter(year=="2012")%>%group_by(marital))
+```
+There are 1,613 observations in the variable "marital" in 1972	and 1,974 in 2012, which are divided in 5 levels. Let's see it in stacked bar chart:
+
+
+```{r}
+marital_1972_2012%>%
+   ggplot(aes(as.factor(year),fill=marital))+geom_bar()+theme(axis.text.x=element_text(angle=90))
+```
+
+As we see, although there were more respondents in the 2012 research, the proportion o married people diminished compared to 1972.
+
+* * *
+
+## Part 4: Inference
+
+But the conclusion that there is a difference between the proportions of married people in 1972 and 2012 is valid only for the sample data. So we can create an hypothesis test to make inference in order to discover if there is convincing evidence about this difference in the population. 
+
+In this case the null hypothesis will be: 
+
+proportion of married people in 1972 = proportion of married people in 2012.
+
+And the alternative hypothesis will be:
+
+proportion of married people in 1972 != proportion of married people in 2012.
+
+But the variable "marital" in the current data set has 5 levels and we need to transform it in a variable with only two levels (success for "married" and failure for other marital status): 
+
+```{r}
+marital_1972_2012<- marital_1972_2012%>%
+  mutate(married = ifelse(marital=="Married", "Yes", "No"))
+```
+
+The conditions to apply the hypotheses test for comparing two proportions are accomplished, since the observations in the sample are independent and the sample size is sufficiently large (np≥10 and n(1−p)≥10):
+
+```{r}
+# np≥10 1972:
+1613*(1160/1613)
+
+# n(1−p) 1972:
+1613*(1-(1160/1613))
+```
+
+
+```{r}
+
+# np≥10 2012:
+1974*(900/1974)
+
+# n(1−p) 2012:
+1974*(1-(900/1974))
+```
+Then the distribution of the sample proportion will be nearly normal, centered at the true population proportion and with a standard error of SE. Now we can run the test:
+
+```{r}
+inference(y=married, x=as.factor(year) ,data = marital_1972_2012, type = "ht", null = 0, statistic = "proportion", success = "Yes", method = "theoretical", alternative = "twosided", sig_level = 0.05, conf_level = 0.95)
+```
+
+As long as the p-value is very small, far beyond 0.05 we can reject the null hypotheses in favor of the alternative one and conclude that there is convincing evidence that USA has seen a change in its married status index between 1972 and 2012.
