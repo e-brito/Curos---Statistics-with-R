@@ -1,0 +1,288 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+<style>
+body {text-align: justify}
+</style>
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(GGally)
+library(gridExtra)
+library(knitr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+
+* * *
+
+## Part 1: Data
+
+Generabizability – Acording to the given instructions the data set is comprised of 651 randomly sampled movies produced and released before 2016. Than, as we conclude that random sampling was used, the results are generalizable to the target population.  
+
+Causality – Since there was no use of random assignment, the study is not experimental. Than, the results don't suggest causation between the quantities studied, at most correlation. 
+
+
+* * *
+
+## Part 2: Research question
+
+Considering the variable imdb_rating as a response variable in a multiple linear regression model, which other variables from the data set could be used as explanatory variables to fit a predicting model?
+* * *
+
+## Part 3: Exploratory data analysis
+
+The data set is composed of 32 characteristics (variables) about 651 movies (observations) as shows the function "dim", that brings the number of rows and columns of the data set:
+
+```{r}
+dim(movies)
+```
+
+Using the function str, the type of each variable is shown bellow:
+```{r}
+str(movies)
+```
+Given that imdb_rating will be the response variable in our model, let's see its distribution:
+
+```{r}
+summary(movies$imdb_rating)
+```
+
+
+```{r}
+ggplot(data=movies,aes(x=imdb_rating))+geom_histogram(bins =30)
+sort(movies$imdb_rating)
+```
+
+The median of the distribution is 6.6, but the mean is only 6.493, reflecting the influence of poor ratings (the minimum rate was 1.9). Only a quarter of the movies received a score under 5.9 and the left skewness of the data suggests that the movies are more likely to be rated highly in IMDB.
+
+
+* * *
+
+## Part 4: Modeling
+
+*** Multiple linear regression***
+
+We have a lot of variables in the data set and we are looking for a multiple regression model. So, let's see what other variables could be included in this model. We are going to choose some of this variables,  that we can expect to have some influence on the response variable "imdb_rating" (the rest of the variables we considered irrelevant). The choosen variables are: Rating on IMDB (imdb_rating), Number of votes on IMDB (imdb_num_votes), Runtime of movie in minutes (runtime), Audience score on Rotten Tomatoes (audience_score ), Critics score on Rotten Tomatoes (critics_score), Month the movie is released in theaters ( thtr_rel_month), Genre of movie (genre), Categorical variable for critics rating on Rotten Tomatoes (critics_rating), Categorical variable for audience rating on Rotten Tomatoes ( audience_rating), Whether or not the movie was nominated for the best picture Oscar (best_pic_nom), Whether or not the movie won the best picture Oscar (best_pic_win), MPAA rating of the movie (mpaa_rating). Let's make a data set with only this selected variables:
+
+
+```{r}
+data.model <- movies %>% 
+ dplyr::filter(title_type == "Feature Film") %>% 
+ dplyr::select(imdb_rating, #Rating on IMDB
+               imdb_num_votes, #Number of votes on IMDB
+               audience_score, #Audience score on Rotten Tomatoes
+               critics_score, #Critics score on Rotten Tomatoes
+               thtr_rel_month,#Month the movie is released in theaters
+               runtime, #Runtime of movie (in minutes)
+               genre, #Genre of movie (Action & Adventure, Comedy, Documentary, Drama, Horror, Mystery & Suspense, Other)
+               critics_rating, #Categorical variable for critics rating on Rotten Tomatoes (Certified Fresh, Fresh, Rotten)
+               audience_rating, #Categorical variable for audience rating on Rotten Tomatoes (Spilled, Upright)
+               best_pic_nom, #Whether or not the movie was nominated for a best picture Oscar (no, yes)
+               best_pic_win, #Whether or not the movie won a best picture Oscar (no, yes)
+               mpaa_rating) #MPAA rating of the movie (G, PG, PG-13, R, Unrated)
+```
+
+
+From this new data set, it seens that 4 variables (imbd_rating, critics_score, audience_score and imbd_number_votes) can behave as a dependent variable associated with the popularity of the films. Thus, it will be necessary to determine the degree of association between these variables in order to see if imbd_rating is really the one to be choosen as the response variable.
+
+```{r}
+ggpairs(data.model,columns = 1:4)
+```
+
+Rating on IMDB (imdb_rating) satisfies the normality distribution criteria and as long as it presents collinearity with Critics score on Rotten Tomatoes (critics_score) and Audience score on Rotten Tomatoe (audience_score), this variables must be excluded from the model. As the number of votes (imbd_number_votes) is a variable that participates to create the imdb_rating, it also can be excluded.
+
+We start with a full model that predicts imdb_rating based on all the selected variables:
+
+
+```{r}
+multiple_model_1<-lm(imdb_rating ~ thtr_rel_month + 
+                  runtime + 
+                  genre + 
+                  critics_rating +
+                  audience_rating +
+                  best_pic_nom + 
+                  best_pic_win +
+                  mpaa_rating, 
+                  data = data.model)
+summary(multiple_model_1)
+```
+
+The regression model is significant (p<0.05) and has a coefficient of determination of 61.38%, but the model can still improve if those variables that were not significant in any of the subcategories are removed. We are going to drop thtr_rel_month, best_pic_nom and best_pic_win will be removed, which are non statistical significant variables (the p-values is not as low as less than 0.05) and run another model. 
+
+```{r}
+multiple_model_2<-lm(imdb_rating ~ runtime + 
+                  genre + 
+                  critics_rating +
+                  audience_rating +
+                  mpaa_rating, 
+                  data = data.model)
+summary(multiple_model_2)
+```
+
+*** Finding the best model***
+
+To find the best model, we are going to use the forward stepwise model selection based on adjusted R^2. In other words, we will choose the model with higher adjusted R^2, by simply starting with the multiple_model_3 and eliminating one variable at a time until the ideal model is reached, refitting all possible models omitting one variable at a time until we get to the model with the highest adjusted R2, like this (this last part will not be made, but it should be):
+
+```{r}
+multiple_model_3<-lm(imdb_rating ~  
+                  genre + 
+                  critics_rating +
+                  audience_rating +
+                  mpaa_rating, 
+                  data = data.model)
+summary(multiple_model_3)$adj.r.squared
+```
+
+```{r}
+multiple_model_4<-lm(imdb_rating ~ runtime + 
+                  critics_rating +
+                  audience_rating +
+                  mpaa_rating, 
+                  data = data.model)
+summary(multiple_model_4)$adj.r.squared
+```
+
+```{r}
+multiple_model_5<-lm(imdb_rating ~ runtime + 
+                  genre + 
+                  audience_rating +
+                  mpaa_rating, 
+                  data = data.model)
+summary(multiple_model_5)$adj.r.squared
+```
+```{r}
+multiple_model_6<-lm(imdb_rating ~ runtime + 
+                  genre + 
+                  critics_rating +
+                  mpaa_rating, 
+                  data = data.model)
+summary(multiple_model_6)$adj.r.squared
+```
+
+```{r}
+multiple_model_7<-lm(imdb_rating ~ runtime + 
+                  genre + 
+                  critics_rating +
+                  audience_rating,
+                  data = data.model)
+summary(multiple_model_7)$adj.r.squared
+```
+
+As we see, if we take out anyone of the explanatory variables from the model, its ajusted R^2 will be lower. So, we still stick to the multiple_model_2 with the 0.5989 Adjusted R-squared.
+
+*** ANOVA***
+
+Let's run an analysis of variance for this model:
+```{r}
+anova(multiple_model_2)
+```
+Looking at the ANOVA it reveals that the MPAA rating of the movie (mpaa_rating) is not significant for the regression, so we will drop the multiple_model_2 model and stick with the multiple_model_7, where mpaa_rating does not appear.
+
+*** Conditions for the regression***
+
+P-values and parameter estimates must be trusted only if the conditions for the regression are reasonable, which we check using diagnostic plots. To assess whether the linear model is reliable, we need to check this conditions: (1) linearity, (2) nearly normal residuals, (3) constant variability, and (4) independence of residuals.
+
+
+To check the first and third condition - Linearity and Constant variance of residuals:
+
+```{r}
+ggplot(data = multiple_model_7, aes(x = .fitted, y = .resid)) + 
+  geom_point() +  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +  ylab("Residuals") 
+```
+
+We can verify the linearity condition with a plot of the residuals vs. fitted (predicted) values. Here our model object `multiple_model_7` serve as a data set because stored within it are the fitted values and the residuals. As the residuals plot shows a random scatter around zero, we can conclude that there is linear association between the two variables. But we can also check the 3ª condition (Constant variance of residuals). Looking to the plot, we can see constant variance of residuals (no fan shape in residuals plot).  
+
+
+To check the second condition - Nearly normal residuals: 
+ 
+```{r}
+ ggplot(data = multiple_model_7, aes(x = .resid)) + 
+  geom_histogram() + 
+  xlab("Residuals") 
+```
+
+The residuals are left skewed, but the sample size is large, so this may not be an important violation of conditions. 
+
+
+To check the forth condition - independence of residuals:
+
+```{r}
+plot(multiple_model_7$residuals)
+```
+
+If the residuals are independent, the variables also are. We check this seing the time series structure plotting rediduals x order of data collection. As we see, there is no patter along the time line. Since there is no order effect, we conclude for independence of observations.
+
+We also could check for the conditions in this way:
+
+```{r}
+a1 <- ggplot(data = multiple_model_7, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+a2 <- ggplot(data = multiple_model_7, aes(x = .resid)) +
+  geom_histogram(binwidth = 0.5) +
+  xlab("Residuals")
+
+a3 <- ggplot(data = multiple_model_7, aes(sample = .resid)) +
+  stat_qq() 
+
+
+grid.arrange(a1, a3, a2, nrow=1, top="Model Diagnostic Plots")
+```
+The regression model approaches the criteria of a model with normal residual distribution, becoming a parsimonious model.
+* * *
+
+## Part 5: Prediction
+
+$$
+\begin{aligned}
+  \widehat{IMDB\_rating} 
+    &= \hat{\beta}_0 + \hat{\beta}_1 \times runtime + \hat{\beta}_2 \times genre + \hat{\beta}_3 \times critics\_rating + \hat{\beta}_4 \times audience\_rating\\
+    
+\end{aligned}
+$$
+
+If, for instance, we want to use the model to predict the imdb_rating for the drama movie "ONE NIGHT IN MIAMI" from 2020, that had 110 minutes of runtime, "Upright" audience_rating and a "Certified Fresh" critics_rating in Rotten Tomatoes, we can use R. First creating a new data frame for this movie and then using the predict function:
+
+```{r}
+movie_X <- data.frame(runtime = 110, 
+                      genre = "Drama", 
+                      critics_rating = "Certified Fresh", 
+                      audience_rating = "Upright")
+predict(multiple_model_7, movie_X)
+```
+To construct a prediction interval around this prediction (providing a measure of uncertainty around the prediction), we do the following:
+
+```{r new-prof-predict-interval}
+predict(multiple_model_7, movie_X, interval = "prediction", level = 0.95)
+```
+The real IMDB rating for the movie "ONE NIGHT IN MIAMI" is 7.1, very closed to the predicted.
+
+* * *
+
+## Part 6: Conclusion
+
+Now we can conclude that a good model to predict IMDB rating is a model that considers “Runtime of movie (runtime)”, “Genre of movie (genre)”, “Categorical variable for critics rating on Rotten Tomatoes (critics_rating)” and “Categorical variable for audience rating on Rotten Tomatoes (audience_rating)”. With this model we could predict with a good precision the IMDB rating for the movie "ONE NIGHT IN MIAMI".
+
