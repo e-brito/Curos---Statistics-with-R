@@ -1,0 +1,278 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+<style>
+body {text-align: justify}
+</style>
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+## Part 1: Data
+
+
+The purpose of the BRFSS is to collect uniform, state-specific data on preventive health practices and risk behaviors linked to chronic diseases, injuries, and preventable infectious diseases that affect all the adult population residing in the US, but the health characteristics estimated pertain only to the non-institutionalized adult population. All the 50 states, the District of Columbia, Puerto Rico, and Guam collect survey data annually, but American Samoa, Federated States of Micronesia, and Palau only collect over a limited point- in-time (usually one to three months). 
+
+**Generabizability:** 
+
+The surveys are conducted both by landline telephone and cellular telephone. In conducting the landline telephone survey, interviewers collect data from a randomly selected adult in a household. On the other hand, in conducting the cellular telephone version of the BRFSS questionnaire, interviewers collect data from an adult who participates by using a cellular telephone and resides in a private residence or college housing, but it's not clear how theses participants are selected. Therefore, it's impossible to say if they were randomly sampled from the population.Since we don't know if random sampling has been employed in all the data collection, the results can not be generalized to the target population.
+
+**Causality:** 
+
+Furthermore, considering its characteristics, we must say that this is a prospective observational study, not an experimental one. Therefore, since random assignment has not been employed in study design, its results does not suggest causality, at most correlation.
+
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+
+Are there any relationship between the age of the participants and their perceived general health status? The interest here is to see if peoples age affect their health perception.
+
+**Research quesion 2:**
+
+Does the data show any relationship between being overweight or obese and having problems with high cholesterol and high blood pressure? Exploring these relationship is relevant since it seams that a big portion of the population is overweight or obese.
+
+**Research quesion 3:**
+
+Does having healthy habits affects an adults BMI? Comprehending this relationship could be useful to every one, specially to public health policy makers. 
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**
+To explore the relationship between the age of the participants and their general health status we can use the variables genhlth and _age_g. To familiarize ourselves with them we must use the dplyr chain to select just the variables of interest and investigate only their structure by adding str() at the end of the chain. But, R variable names must start with a letter, so we need to discover how R fixed the variable _ageg5yr by searching for the fragment already known using the grep command: 
+
+```{r}
+grep("_age_g",names(brfss2013), value=TRUE)
+```
+We confirm that the variable is called X_age_g and than we can investigate the two variables structure:
+
+```{r}
+brfss2013 %>% 
+  select(genhlth, X_age_g) %>% 
+  str()
+```
+These are two categorical data, recorded as factors. To tabulate these data we use the group_by() function along with the summarise() command. First for the X_age_g variable:
+
+```{r}
+brfss2013%>%      
+  group_by(X_age_g)%>%      
+  summarise(count=n())
+```
+
+As we can see the X_age_g variable brings the imputed age of the respondents in six groups (Six-level age category). To have a more clear view and to facilitate the analysis, we can make a bar chart to see de distribution of this data:
+
+```{r}
+ggplot(brfss2013,aes(x=X_age_g))+geom_bar(fill="lightgreen")+theme(axis.text.x=element_text(angle=90))
+```
+
+In the bar chart above, we figure out that as we go to the next level the group size gets bigger and that most respondents are 65 or older. Than, we can similarly view the levels and number of occurrences of these levels in the genhlth variable:
+
+```{r}
+brfss2013%>%      
+  group_by(genhlth)%>%      
+  summarise(count=n())
+```
+The genhlth variable divides people in five groups according to their perception about their general Health. And again we plot the numbers:
+
+```{r}
+ggplot(brfss2013,aes(x=genhlth))+geom_bar(fill="lightblue")
+```
+
+What the bar graph above shows is that the majority of respondents see themselves in poor or regular health. Furthermore, the largest group is the one with people who consider themselves to be in very good health.Now we can try to see the relationship between the two variables putting than together in a stacked bar chart. But We have NA (Not Available) entries in the both variables, which we might want to exclude from our analysis by filtering them out using the Not operator, !, to indicate “we want all the ones that are not NA”:
+
+```{r}
+brfss2013%>%
+  filter(!is.na(X_age_g),!is.na(genhlth))%>%
+  ggplot(aes(X_age_g,fill=genhlth))+geom_bar()+theme(axis.text.x=element_text(angle=90))
+```
+
+The chart above displays the groups of respondents by age and by subgroups according to their health status. But its not clear the proportion of the subgroups in every group. To improve the visualization, we can use a percent stacked bar chart:
+
+```{r}
+brfss2013%>%
+  filter(!is.na(X_age_g),!is.na(genhlth))%>%
+  ggplot(aes(X_age_g,fill=genhlth))+geom_bar(position="fill")+theme(axis.text.x=element_text(angle=90))
+```
+
+Using the percent stacked bar chart we can conclude that the proportion of perceived excellent and very good health status is bigger in the youngest group (age 18 to 24). Also, the excellent perceived status is very small in the elderly group. Finally we can conclude that the proportion of poor heath perceived status is bigger in the elderly group too.
+
+**Research quesion 2:**
+
+To see if the data show any relationship between being overweight or obese and having problems with high cholesterol and high blood pressure we can use the variables _rfhype5, X_rfchol, _rfbmi5 and _bmi5cat    .
+Before we star familiarizing ourselves with them we must discover how R fixed the variables names problem by searching for the fragments we already known using the grep command: 
+
+```{r}
+grep("_rfhype5",names(brfss2013), value=TRUE)
+grep("X_rfchol",names(brfss2013), value=TRUE)
+grep("_rfbmi5",names(brfss2013), value=TRUE)
+grep("_bmi5cat",names(brfss2013), value=TRUE)
+```
+Now that we know the corrected names for the four variables, let's explore them investigating their structure.
+
+```{r}
+brfss2013 %>% 
+  select(X_rfhype5,X_rfchol,X_rfbmi5,X_bmi5cat) %>% 
+  str()
+```
+All of them are categorical data, recorded as factors. Than we can tabulate these data using the group_by() function along with the summarise() command and we can also see their distribution in a bar chart: 
+
+```{r}
+brfss2013%>%      
+  group_by(X_rfhype5)%>%      
+  summarise(count=n())
+```
+```{r}
+brfss2013%>%  
+  ggplot(aes(x= X_rfhype5))+geom_bar(fill="orange")+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+As we can see the X_rfhype5 which is the High Blood Pressure Calculated Variable tells us that the majority of the adults haven't been told they have high blood pressure by a doctor, nurse, or other health professional. 
+Let's do the same analysis with the variable X_rfchol:
+
+```{r}
+brfss2013%>%      
+  group_by(X_rfchol)%>%      
+  summarise(count=n())
+```
+```{r}
+brfss2013%>%  
+  ggplot(aes(x= X_rfchol))+geom_bar(fill="yellow")+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+As we see from the High Cholesterol Calculated Variable (X_rfchol), again the majority of adults have not had their cholesterol checked and been told by a doctor, nurse, or other health professional that it was high. Finally, let's do the same analysis with the variable X_rfbmi5:
+
+```{r}
+brfss2013%>%      
+  group_by(X_rfbmi5)%>%      
+  summarise(count=n())
+```
+
+```{r}
+brfss2013%>%  
+  ggplot(aes(x= 
+X_rfbmi5))+geom_bar(fill="blue")+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+Now we see that the majority of adults - 301,885 - have a body mass index greater than 25.00, which means they are overweight or Obese.
+To go further in the analysis, we will create a new variable joining all the tree variables above to evaluate the adults who answered "Yes" to the tree questions. This variable will be created using the mutate() function under the name HBP_HC_O. Let's create, count and plot it:
+
+```{r}
+brfss2013 <- brfss2013 %>% 
+  mutate(HBP_HC_O = ifelse(X_rfchol == "Yes" & X_rfhype5=="Yes" & X_rfbmi5=="Yes", "Yes", "No"))
+
+
+brfss2013%>%
+group_by(HBP_HC_O)%>%summarise(count=n())
+```
+
+```{r}
+brfss2013%>%  
+  ggplot(aes(x=HBP_HC_O))+geom_bar(fill="darkgrey")+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+As we see, only 83,904 adults, the minority, are overweight or Obese and have been told to have high blood pressure and high cholesterol by a doctor, nurse, or other health professional.
+We can create rates to have a better view of the proportion of adults with each one of the tree conditions as well as the proportion of adults with all the tree conditions in relation to the total. To improve the analyses, we are going to filter out for the NAs entries:
+
+```{r}
+brfss2013%>%
+  filter(!is.na(X_rfhype5))%>%
+  summarise(HBP_rate = sum(X_rfhype5 == "Yes") / n())
+```
+
+```{r}
+brfss2013%>%
+  filter(!is.na(X_rfchol))%>%
+  summarise(HC_rate = sum(X_rfchol == "Yes") / n())
+```
+
+```{r}
+brfss2013%>%
+  filter(!is.na(X_rfbmi5))%>%
+  summarise(O_O_rate = sum(X_rfbmi5== "Yes") / n())
+```
+
+```{r}
+brfss2013%>%
+  filter(!is.na(HBP_HC_O))%>%
+  summarise(HBP_HC_O_rate = sum(HBP_HC_O == "Yes") / n())
+```
+We can conclude that the proportion of overweight or obese persons (64,91%) is much larger than the proportion of diagnosed High Blood Pressure (40,57%) or High Cholesterol (43,68%) ones. Furthermore, the proportion of overweight or obese adults suffering from high cholesterol and high blood pressure (17,6%) is very smaller than the proportion of just obese or overweight adults (64,91%). This conclusion go against some claims that being obese puts someone at risk of high cholesterol levels and high blood pressure (https://www.cdc.gov/heartdisease/risk_factors.htm).But, it could be the case that, although being ill, a big part of the respondents where not already diagnosed with high cholesterol and high blood pressure. 
+
+**Research quesion 3:**
+
+To explore the relationship between having good healthy habits and the BMI index we will compare the variable X_bmi5 (Computed Body Mass Index) with a set of variables we consider as a signal of having healthy habits like _frutsum (Total Fruits Consumed Per Day), vegesum (Total Vegetables Consumed Per Day) and _totinda (Leisure Time Physical Activity Calculated Variable). First we must discover how R fixed the variables names problem by searching for the fragments we already known using the grep command: 
+```{r}
+grep("_bmi5",names(brfss2013),value=TRUE)
+grep("frtlt1", names(brfss2013),value=TRUE) 
+grep("veglt1", names(brfss2013),value=TRUE)
+grep("totinda", names(brfss2013),value=TRUE) 
+```
+Now we know the correct names for the variables of interest (X_bmi5, X_frtlt1, X_veglt1 and X_totinda), let's work on them. We will establish that a person with healthy habits is someone who eats fruits and vegetables every day and have a regular physical activities routine. So we are interested in those whose answer is 1 (Consumed fruit one or more times per day) to the X_frtlt1 variable, 1 (Consumed vegetables one or more times per day) to the X_veglt1 variable and 1 (Had physical activity or exercise) to the X_totinda variable. Than, we can create a new variable called C_FrVeg_PhAct to distinguish this respondents using the mutate() function:
+
+```{r}
+brfss2013 <- brfss2013 %>% mutate(C_FrVeg_PhAct = ifelse(X_frtlt1 == "Consumed fruit one or more times per day" & X_veglt1=="Consumed vegetables one or more times per day" & X_totinda=="Had physical activity or exercise", "yes", "no"))
+```
+
+Now we can explore the created variable for healthy habits C_FrVeg_PhAct. To properly summarize the variable C_FrVeg_PhAct we need to filter out some observations where there is missing and out of range entries. To do this were are going to use the variables X_vegetex and X_fruitex filtering only the observations signed as "No missing values and in accepted range":
+
+```{r}
+brfss2013%>%
+filter(X_vegetex=="No missing values and in accepted range",X_fruitex=="No missing values and in accepted range",!is.na(X_totinda))%>%group_by(C_FrVeg_PhAct)%>%summarise(count=n())
+```
+```{r}
+brfss2013%>%
+  filter(!is.na(C_FrVeg_PhAct))%>%
+ggplot(aes(x= C_FrVeg_PhAct))+geom_bar(fill="lightblue")+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+As we see in the summary and the graph above, only 191229 adults (the minority) have the tree healthy habits. Now lets explore the BMI for the people with healthy habits. But first, let's see some summary statistics for the BMI considering the general respondents:
+
+```{r}
+brfss2013%>% filter(!is.na(X_bmi5))%>%summarise(mean_bmi=mean(X_bmi5),median_bmi=median(X_bmi5),sd_bmi=sd(X_bmi5),IQR_bmi=IQR(X_bmi5))
+```
+```{r}
+brfss2013%>% filter(!is.na(X_bmi5))%>%ggplot(aes(y=X_bmi5)) + geom_boxplot()+coord_flip()
+```
+
+The summary statistics and the boxplot above show that the majority of adults are overweight or obese (have  BMI over 25.00) and they are concentrated around the median of 26.63, given that the IQR is 714. Finally, we observe that the mean (2782.448) is not a robust statistic because it is very influenced by the big outliers showed in the graph. 
+Now lets apply the same summary statistics for the variable C_FrVeg_PhAct, again filtering out the missing and out of range entries. :
+
+```{r}
+brfss2013%>% filter(!is.na(X_bmi5),X_vegetex=="No missing values and in accepted range",X_fruitex=="No missing values and in accepted range",!is.na(X_totinda))%>%
+  group_by(C_FrVeg_PhAct) %>%
+  summarise(mean_bmi=mean(X_bmi5),median_bmi=median(X_bmi5),sd_bmi=sd(X_bmi5),IQR_bmi=IQR(X_bmi5))
+```
+```{r}
+brfss2013%>% filter(!is.na(X_bmi5),X_vegetex=="No missing values and in accepted range",X_fruitex=="No missing values and in accepted range",!is.na(X_totinda))%>%
+  group_by(C_FrVeg_PhAct)%>%
+  ggplot(aes(x = C_FrVeg_PhAct,y=X_bmi5)) + geom_boxplot()+coord_flip()
+```
+
+We can see from the summary and the box plot above that adults with no healthy habits have a bigger median BMI (2746) than the general respondents (2663), while adults with healthy habits have a smaller one (2604), which suggests a correlation between healthy habits and smaller BMI. Furthermore the range for adults with healthy habits is smaller meaning that the distribution is less spread. It’s also interesting to note that even the adults with healthy habits have a high median and mean IBM. 
+Viewing this last observation in a differente approach we can compare the created C_FrVeg_PhAct variable with the X_rfbmi5 (Overweight Or Obese Calculated Variable):
+
+```{r}
+brfss2013%>% 
+  filter(!is.na(X_rfbmi5),X_vegetex=="No missing values and in accepted range",X_fruitex=="No missing values and in accepted range",!is.na(X_totinda))%>%
+  ggplot(aes(C_FrVeg_PhAct,fill=X_rfbmi5))+geom_bar(position='dodge',width=0.5)
+```
+
+As we see from the side-by-side bar chart above, the proportion of overweight or obese people (which have a higher BMI) is big even for the healthy habit adults, although it is proportionally smaller them for those with no healthy habits. 
